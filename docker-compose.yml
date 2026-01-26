@@ -1,0 +1,117 @@
+version: "3.9"
+
+services:
+  # Banco de Dados
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: itsm
+      POSTGRES_USER: itsm_user
+      POSTGRES_PASSWORD: itsm_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U itsm_user -d itsm"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Cache e Fila
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # LDAP (opcional - pode substituir por Active Directory real)
+  ldap:
+    image: osixia/openldap:latest
+    restart: unless-stopped
+    environment:
+      LDAP_ORGANISATION: "COPPEAD"
+      LDAP_DOMAIN: "coppead.ufrj.br"
+      LDAP_ADMIN_PASSWORD: "admin_password"
+    ports:
+      - "389:389"
+      - "636:636"
+    volumes:
+      - ldap_data:/var/lib/ldap
+      - ldap_config:/etc/ldap/slapd.d
+
+  # Backend FastAPI
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://itsm_user:itsm_password@db:5432/itsm
+      REDIS_URL: redis://redis:6379/0
+      LDAP_SERVER: ldap://ldap:389
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      DEBUG: "false"
+      ENVIRONMENT: development
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend/app:/app/app
+    command: >
+      sh -c "uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+  # Worker Celery (Tarefas assíncronas)
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://itsm_user:itsm_password@db:5432/itsm
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      LDAP_SERVER: ldap://ldap:389
+    depends_on:
+      - db
+      - redis
+      - api
+    command: >
+      celery -A app.tasks.celery_app worker --loglevel=info
+
+  # Celery Beat (Agendador de tarefas)
+  celery_beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://itsm_user:itsm_password@db:5432/itsm
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+    depends_on:
+      - db
+      - redis
+      - api
+    command: >
+      celery -A app.tasks.celery_app beat --loglevel=info
+
+volumes:
+  postgres_data:
+  redis_data:
+  ldap_data:
+  ldap_config:
