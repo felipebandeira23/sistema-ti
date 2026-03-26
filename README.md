@@ -186,15 +186,6 @@ Veja a [documentação completa do projeto](Documentos/README.md).
 
 Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
 
-## 👥 Autores
-
-- Sistema desenvolvido para COPPEAD/UFRJ
-- 2026
-
-## 📞 Suporte
-
-Para suporte, abra uma issue no repositório GitHub ou entre em contato com o time de desenvolvimento.
-
 ## 🗺️ Roadmap
 
 - [ ] Fase 1: MVP (Autenticação, Tickets, Ativos)
