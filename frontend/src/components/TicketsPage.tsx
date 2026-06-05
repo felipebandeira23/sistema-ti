@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import axios from 'axios'
+import { useToast } from '../contexts/ToastContext'
 
 interface Ticket {
   id: string
@@ -8,162 +9,256 @@ interface Ticket {
   status: string
   priority: string
   type: string
-  opened_by: string
+  ticket_number?: string
+  opened_by?: string
   created_at: string
+}
+
+interface FormData {
+  title: string
+  description: string
+  type: string
+  priority: string
+}
+
+interface FormErrors {
+  title?: string
+  description?: string
 }
 
 interface TicketsPageProps {
   token: string
 }
 
+const PRIORITY_STYLES: Record<string, string> = {
+  CRÍTICA: 'bg-red-100 text-red-800',
+  ALTA: 'bg-orange-100 text-orange-800',
+  MÉDIA: 'bg-yellow-100 text-yellow-800',
+  BAIXA: 'bg-green-100 text-green-800',
+  // legacy
+  MEDIA: 'bg-yellow-100 text-yellow-800',
+}
+
+const STATUS_STYLES: Record<string, string> = {
+  ABERTO: 'bg-blue-100 text-blue-800',
+  EM_PROGRESSO: 'bg-purple-100 text-purple-800',
+  AGUARDANDO_USUARIO: 'bg-orange-100 text-orange-800',
+  RESOLVIDO: 'bg-teal-100 text-teal-800',
+  FECHADO: 'bg-green-100 text-green-800',
+  CANCELADO: 'bg-gray-100 text-gray-600',
+}
+
+const TYPE_ICONS: Record<string, string> = {
+  INCIDENTE: '🚨',
+  REQUISICAO: '📋',
+  REQUISIÇÃO: '📋',
+  PROBLEMA: '🔧',
+  MUDANCA: '🔄',
+  MUDANÇA: '🔄',
+}
+
+const INITIAL_FORM: FormData = { title: '', description: '', type: 'INCIDENTE', priority: 'MÉDIA' }
+
+function validateForm(data: FormData): FormErrors {
+  const errors: FormErrors = {}
+  if (!data.title.trim()) {
+    errors.title = 'Título é obrigatório'
+  } else if (data.title.trim().length < 5) {
+    errors.title = 'Título deve ter ao menos 5 caracteres'
+  }
+  if (!data.description.trim()) {
+    errors.description = 'Descrição é obrigatória'
+  } else if (data.description.trim().length < 10) {
+    errors.description = 'Descrição deve ter ao menos 10 caracteres'
+  }
+  return errors
+}
+
 export function TicketsPage({ token }: TicketsPageProps) {
+  const toast = useToast()
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    type: 'INCIDENTE',
-    priority: 'MEDIA',
-  })
+  const [submitting, setSubmitting] = useState(false)
+  const [formData, setFormData] = useState<FormData>(INITIAL_FORM)
+  const [formErrors, setFormErrors] = useState<FormErrors>({})
+  const [filterStatus, setFilterStatus] = useState('')
+  const [filterPriority, setFilterPriority] = useState('')
+  const [search, setSearch] = useState('')
 
-  useEffect(() => {
-    fetchTickets()
-  }, [])
+  const headers = { Authorization: `Bearer ${token}` }
 
-  const fetchTickets = async () => {
+  const fetchTickets = useCallback(async () => {
+    setLoading(true)
     try {
-      const response = await axios.get('/api/tickets/', {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      setTickets(response.data)
-    } catch (error) {
-      console.error('Erro ao buscar tickets:', error)
+      const params: Record<string, string> = {}
+      if (filterStatus) params.status = filterStatus
+      if (filterPriority) params.priority = filterPriority
+      const response = await axios.get('/api/tickets/', { headers, params })
+      const data = response.data
+      setTickets(Array.isArray(data) ? data : data.items ?? [])
+    } catch {
+      toast.error('Erro ao carregar tickets. Verifique a conexão.')
     } finally {
       setLoading(false)
     }
-  }
+  }, [token, filterStatus, filterPriority])
 
-  const handleCreateTicket = async (e: React.FormEvent) => {
+  useEffect(() => { fetchTickets() }, [fetchTickets])
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    const errors = validateForm(formData)
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors)
+      return
+    }
+    setFormErrors({})
+    setSubmitting(true)
     try {
-      await axios.post('/api/tickets/', formData, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      setFormData({ title: '', description: '', type: 'INCIDENTE', priority: 'MEDIA' })
+      await axios.post('/api/tickets/', {
+        ...formData,
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+      }, { headers })
+      toast.success('Ticket criado com sucesso!')
+      setFormData(INITIAL_FORM)
       setShowForm(false)
       fetchTickets()
-    } catch (error) {
-      console.error('Erro ao criar ticket:', error)
+    } catch (err: any) {
+      const detail = err.response?.data?.detail
+      toast.error(typeof detail === 'string' ? detail : 'Erro ao criar ticket. Tente novamente.')
+    } finally {
+      setSubmitting(false)
     }
   }
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'ALTA':
-        return 'bg-red-100 text-red-800'
-      case 'MEDIA':
-        return 'bg-yellow-100 text-yellow-800'
-      case 'BAIXA':
-        return 'bg-green-100 text-green-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
+  const handleFieldChange = (field: keyof FormData, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
+    if (formErrors[field as keyof FormErrors]) {
+      setFormErrors((prev) => ({ ...prev, [field]: undefined }))
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'ABERTO':
-        return 'bg-blue-100 text-blue-800'
-      case 'EM_PROGRESSO':
-        return 'bg-purple-100 text-purple-800'
-      case 'FECHADO':
-        return 'bg-green-100 text-green-800'
-      case 'AGUARDANDO_USUARIO':
-        return 'bg-orange-100 text-orange-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
-    }
-  }
+  const visibleTickets = tickets.filter((t) => {
+    if (!search) return true
+    const q = search.toLowerCase()
+    return (
+      t.title?.toLowerCase().includes(q) ||
+      t.description?.toLowerCase().includes(q) ||
+      t.ticket_number?.toLowerCase().includes(q)
+    )
+  })
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-3xl font-bold text-gray-900">Tickets</h2>
+    <div className="p-4 md:p-8 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Tickets</h2>
+          <p className="text-gray-500 text-sm mt-0.5">Incidentes, requisições, problemas e mudanças</p>
+        </div>
         <button
-          onClick={() => setShowForm(!showForm)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          onClick={() => { setShowForm((v) => !v); setFormErrors({}) }}
+          className="bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 transition font-medium text-sm flex-shrink-0"
         >
-          + Novo Ticket
+          {showForm ? '✕ Cancelar' : '+ Novo Ticket'}
         </button>
       </div>
 
+      {/* Formulário de criação */}
       {showForm && (
-        <div className="bg-white p-6 rounded-lg shadow mb-6">
-          <h3 className="text-xl font-semibold mb-4">Criar Novo Ticket</h3>
-          <form onSubmit={handleCreateTicket} className="space-y-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-5">Novo Ticket</h3>
+          <form onSubmit={handleSubmit} noValidate className="space-y-4">
+            {/* Título */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">Título</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Título <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
                 value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                required
+                onChange={(e) => handleFieldChange('title', e.target.value)}
+                placeholder="Descreva brevemente o problema ou solicitação"
+                className={`w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm ${
+                  formErrors.title ? 'border-red-400 focus:ring-red-400' : 'border-gray-300'
+                }`}
               />
+              {formErrors.title && (
+                <p className="text-red-600 text-xs mt-1">{formErrors.title}</p>
+              )}
             </div>
 
+            {/* Descrição */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">Descrição</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Descrição <span className="text-red-500">*</span>
+              </label>
               <textarea
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                onChange={(e) => handleFieldChange('description', e.target.value)}
+                placeholder="Detalhe o que aconteceu, quando e como reproduzir"
                 rows={4}
-                required
+                className={`w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none ${
+                  formErrors.description ? 'border-red-400 focus:ring-red-400' : 'border-gray-300'
+                }`}
               />
+              {formErrors.description && (
+                <p className="text-red-600 text-xs mt-1">{formErrors.description}</p>
+              )}
+              <p className="text-gray-400 text-xs mt-1 text-right">{formData.description.length} caracteres</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Tipo */}
               <div>
-                <label className="block text-sm font-medium text-gray-700">Tipo</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
                 <select
                   value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                  onChange={(e) => handleFieldChange('type', e.target.value)}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white"
                 >
-                  <option>INCIDENTE</option>
-                  <option>REQUISICAO</option>
-                  <option>PROBLEMA</option>
-                  <option>MUDANCA</option>
+                  <option value="INCIDENTE">🚨 Incidente</option>
+                  <option value="REQUISIÇÃO">📋 Requisição</option>
+                  <option value="PROBLEMA">🔧 Problema</option>
+                  <option value="MUDANÇA">🔄 Mudança</option>
                 </select>
               </div>
 
+              {/* Prioridade */}
               <div>
-                <label className="block text-sm font-medium text-gray-700">Prioridade</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Prioridade</label>
                 <select
                   value={formData.priority}
-                  onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                  onChange={(e) => handleFieldChange('priority', e.target.value)}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white"
                 >
-                  <option>ALTA</option>
-                  <option>MEDIA</option>
-                  <option>BAIXA</option>
+                  <option value="CRÍTICA">🔴 Crítica</option>
+                  <option value="ALTA">🟠 Alta</option>
+                  <option value="MÉDIA">🟡 Média</option>
+                  <option value="BAIXA">🟢 Baixa</option>
                 </select>
               </div>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-3 pt-2">
               <button
                 type="submit"
-                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+                disabled={submitting}
+                className="bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition text-sm font-medium flex items-center gap-2"
               >
-                Criar
+                {submitting ? (
+                  <>
+                    <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                    Criando...
+                  </>
+                ) : 'Criar Ticket'}
               </button>
               <button
                 type="button"
-                onClick={() => setShowForm(false)}
-                className="bg-gray-400 text-white px-4 py-2 rounded-lg hover:bg-gray-500"
+                onClick={() => { setShowForm(false); setFormErrors({}); setFormData(INITIAL_FORM) }}
+                className="bg-gray-100 text-gray-700 px-5 py-2.5 rounded-lg hover:bg-gray-200 transition text-sm font-medium"
               >
                 Cancelar
               </button>
@@ -172,43 +267,118 @@ export function TicketsPage({ token }: TicketsPageProps) {
         </div>
       )}
 
+      {/* Filtros */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="🔍 Buscar por título, descrição ou número..."
+            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Todos os status</option>
+            <option value="ABERTO">Aberto</option>
+            <option value="EM_PROGRESSO">Em Progresso</option>
+            <option value="AGUARDANDO_USUARIO">Aguardando Usuário</option>
+            <option value="RESOLVIDO">Resolvido</option>
+            <option value="FECHADO">Fechado</option>
+          </select>
+          <select
+            value={filterPriority}
+            onChange={(e) => setFilterPriority(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Todas as prioridades</option>
+            <option value="CRÍTICA">Crítica</option>
+            <option value="ALTA">Alta</option>
+            <option value="MÉDIA">Média</option>
+            <option value="BAIXA">Baixa</option>
+          </select>
+          {(filterStatus || filterPriority || search) && (
+            <button
+              onClick={() => { setFilterStatus(''); setFilterPriority(''); setSearch('') }}
+              className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg transition"
+            >
+              Limpar filtros
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Lista de tickets */}
       {loading ? (
-        <div className="text-center py-8">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 animate-pulse">
+              <div className="h-5 bg-gray-200 rounded w-2/3 mb-3" />
+              <div className="h-3 bg-gray-100 rounded w-full mb-2" />
+              <div className="h-3 bg-gray-100 rounded w-3/4" />
+            </div>
+          ))}
+        </div>
+      ) : visibleTickets.length === 0 ? (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
+          <div className="text-5xl mb-4">🎫</div>
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">
+            {search || filterStatus || filterPriority ? 'Nenhum ticket encontrado' : 'Nenhum ticket ainda'}
+          </h3>
+          <p className="text-gray-400 text-sm">
+            {search || filterStatus || filterPriority
+              ? 'Tente remover ou ajustar os filtros.'
+              : 'Clique em "+ Novo Ticket" para criar o primeiro.'}
+          </p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {tickets.length === 0 ? (
-            <div className="bg-white p-6 rounded-lg shadow text-center text-gray-500">
-              Nenhum ticket encontrado
-            </div>
-          ) : (
-            tickets.map((ticket) => (
-              <div key={ticket.id} className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="text-lg font-semibold text-gray-900">{ticket.title}</h3>
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(ticket.status)}`}>
-                    {ticket.status.replace('_', ' ')}
-                  </span>
+        <div className="space-y-3">
+          <p className="text-sm text-gray-500">{visibleTickets.length} ticket(s) encontrado(s)</p>
+          {visibleTickets.map((ticket) => (
+            <div
+              key={ticket.id}
+              className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className="text-base">{TYPE_ICONS[ticket.type] ?? '🎫'}</span>
+                    {ticket.ticket_number && (
+                      <span className="text-xs font-mono text-gray-400">#{ticket.ticket_number}</span>
+                    )}
+                    <h3 className="text-base font-semibold text-gray-900 truncate">{ticket.title}</h3>
+                  </div>
+                  <p className="text-gray-500 text-sm line-clamp-2 mb-3">{ticket.description}</p>
+                  <div className="flex flex-wrap gap-2">
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_STYLES[ticket.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                      {ticket.status?.replace(/_/g, ' ')}
+                    </span>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${PRIORITY_STYLES[ticket.priority] ?? 'bg-gray-100 text-gray-600'}`}>
+                      {ticket.priority}
+                    </span>
+                    <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                      {ticket.type}
+                    </span>
+                  </div>
                 </div>
-                
-                <p className="text-gray-600 mb-3">{ticket.description}</p>
-                
-                <div className="flex gap-2 mb-2">
-                  <span className={`px-3 py-1 rounded text-sm font-medium ${getPriorityColor(ticket.priority)}`}>
-                    Prioridade: {ticket.priority}
-                  </span>
-                  <span className="px-3 py-1 rounded text-sm font-medium bg-gray-100 text-gray-800">
-                    Tipo: {ticket.type}
-                  </span>
-                </div>
-
-                <div className="text-sm text-gray-500 border-t pt-2 mt-2">
-                  <p>Criado em: {new Date(ticket.created_at).toLocaleString('pt-BR')}</p>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-xs text-gray-400">
+                    {new Date(ticket.created_at).toLocaleDateString('pt-BR', {
+                      day: '2-digit', month: '2-digit', year: 'numeric',
+                    })}
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {new Date(ticket.created_at).toLocaleTimeString('pt-BR', {
+                      hour: '2-digit', minute: '2-digit',
+                    })}
+                  </p>
                 </div>
               </div>
-            ))
-          )}
+            </div>
+          ))}
         </div>
       )}
     </div>
