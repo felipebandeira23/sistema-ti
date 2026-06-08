@@ -47,6 +47,18 @@ from app.schemas.cmdb import (
 	CIRelationshipPublic,
 	CIRelationshipCreate,
 )
+from app.schemas.problem import (
+    ProblemPublic,
+    ProblemCreate,
+    ProblemUpdate,
+    ProblemTicketLinkCreate,
+    ProblemTicketLinkPublic,
+)
+from app.schemas.change import (
+    ChangePublic,
+    ChangeCreate,
+    ChangeUpdate,
+)
 
 __all__ = [
 	"LoginRequest",
@@ -99,4 +111,12 @@ __all__ = [
 	"CIUpdate",
 	"CIRelationshipPublic",
 	"CIRelationshipCreate",
+    "ProblemPublic",
+    "ProblemCreate",
+    "ProblemUpdate",
+    "ProblemTicketLinkCreate",
+    "ProblemTicketLinkPublic",
+    "ChangePublic",
+    "ChangeCreate",
+    "ChangeUpdate",
 ]

@@ -45,6 +45,19 @@ from app.services.cmdb_service import (
 	update_ci,
 	create_relationship,
 )
+from app.services.problem_service import (
+    list_problems,
+    get_problem,
+    create_problem,
+    update_problem,
+    link_ticket,
+)
+from app.services.change_service import (
+    list_changes,
+    get_change,
+    create_change,
+    update_change,
+)
 
 __all__ = [
 	"authenticate_user",
@@ -100,4 +113,13 @@ __all__ = [
 	"create_ci",
 	"update_ci",
 	"create_relationship",
+    "list_problems",
+    "get_problem",
+    "create_problem",
+    "update_problem",
+    "link_ticket",
+    "list_changes",
+    "get_change",
+    "create_change",
+    "update_change",
 ]
