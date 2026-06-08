@@ -11,12 +11,16 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: 'Dashboard', path: '/', icon: '📊' },
   { label: 'Tickets', path: '/tickets', icon: '🎫' },
+  { label: 'Problemas', path: '/problems', icon: '🔍' },
+  { label: 'Mudanças', path: '/changes', icon: '🔄' },
   { label: 'Inventário', path: '/assets', icon: '📦' },
   { label: 'CMDB', path: '/cmdb', icon: '⚙️' },
   { label: 'Catálogo', path: '/catalog', icon: '📋' },
   { label: 'Base de Conhecimento', path: '/knowledge', icon: '📚' },
   { label: 'Aprovações', path: '/approvals', icon: '✅' },
   { label: 'SLA', path: '/sla', icon: '⏱️' },
+  { label: 'Relatórios', path: '/reports', icon: '📈' },
+  { label: 'Busca IA', path: '/ai-search', icon: '🤖' },
 ]
 
 interface SidebarProps {

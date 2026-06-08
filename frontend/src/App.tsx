@@ -12,6 +12,10 @@ import { ApprovalsPage } from './components/ApprovalsPage'
 import { SLAPage } from './components/SLAPage'
 import { AppLayout } from './components/AppLayout'
 import { InternalDashboard } from './components/InternalDashboard'
+import { ProblemPage } from './components/ProblemPage'
+import { ChangePage } from './components/ChangePage'
+import { ReportsPage } from './components/ReportsPage'
+import { AISearchPage } from './components/AISearchPage'
 
 function App() {
   const { isAuthenticated, token, initializeAuth } = useAuthStore()
@@ -51,6 +55,10 @@ function App() {
                   <Route path="/catalog" element={<ServiceCatalogPage token={token} />} />
                   <Route path="/approvals" element={<ApprovalsPage token={token} />} />
                   <Route path="/sla" element={<SLAPage token={token} />} />
+                  <Route path="/problems" element={<ProblemPage token={token} />} />
+                  <Route path="/changes" element={<ChangePage token={token} />} />
+                  <Route path="/reports" element={<ReportsPage token={token} />} />
+                  <Route path="/ai-search" element={<AISearchPage token={token} />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </AppLayout>
