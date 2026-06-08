@@ -11,6 +11,9 @@ from app.api.routes import (
 	approvals,
 	cmdb,
     dashboard,
+    problems,
+    changes,
+    ai_search,
 )
 
 
@@ -25,5 +28,8 @@ api_router.include_router(knowledge.router)
 api_router.include_router(approvals.router)
 api_router.include_router(cmdb.router)
 api_router.include_router(dashboard.router)
+api_router.include_router(problems.router)
+api_router.include_router(changes.router)
+api_router.include_router(ai_search.router)
 
 __all__ = ["api_router"]
