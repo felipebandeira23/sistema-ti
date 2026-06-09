@@ -29,13 +29,20 @@ export const useAuthStore = create<AuthStore>((set) => ({
     set({ isLoading: true, error: null })
     try {
       const response = await apiClient.login(username, password)
-      set({
-        user: response.user,
-        token: response.access_token,
-        isAuthenticated: true,
-        isLoading: false,
-      })
-      localStorage.setItem('user', JSON.stringify(response.user))
+      // Backend returns flat fields (user_id, username, email, full_name, roles)
+      // plus a nested token object
+      const user: User = {
+        user_id: response.user_id,
+        username: response.username,
+        email: response.email,
+        full_name: response.full_name,
+        roles: response.roles,
+        active: true,
+        last_login: response.last_login,
+      }
+      const token = response.token?.access_token ?? null
+      set({ user, token, isAuthenticated: true, isLoading: false })
+      localStorage.setItem('user', JSON.stringify(user))
     } catch (error: any) {
       const errorMessage = error.response?.data?.detail || 'Erro ao fazer login'
       set({ error: errorMessage, isLoading: false })

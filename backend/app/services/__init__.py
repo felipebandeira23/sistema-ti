@@ -1,7 +1,11 @@
 from app.services.auth_service import authenticate_user, ensure_admin_seed
 from app.services.user_service import list_users, get_user, create_user, update_user
 from app.services.asset_service import list_assets, get_asset, create_asset, update_asset, soft_delete_asset
-from app.services.ticket_service import list_tickets, get_ticket, create_ticket, update_ticket_status
+from app.services.ticket_service import (
+    list_tickets, get_ticket, create_ticket, update_ticket_status,
+    list_comments, add_comment, get_history, list_tasks, add_task,
+    update_task_status, add_feedback as add_ticket_feedback, update_ticket,
+)
 from app.services.service_catalog_service import (
 	list_categories,
 	create_category,
@@ -45,6 +49,19 @@ from app.services.cmdb_service import (
 	update_ci,
 	create_relationship,
 )
+from app.services.problem_service import (
+    list_problems,
+    get_problem,
+    create_problem,
+    update_problem,
+    link_ticket,
+)
+from app.services.change_service import (
+    list_changes,
+    get_change,
+    create_change,
+    update_change,
+)
 
 __all__ = [
 	"authenticate_user",
@@ -62,6 +79,14 @@ __all__ = [
 	"get_ticket",
 	"create_ticket",
 	"update_ticket_status",
+	"list_comments",
+	"add_comment",
+	"get_history",
+	"list_tasks",
+	"add_task",
+	"update_task_status",
+	"add_ticket_feedback",
+	"update_ticket",
 	"list_categories",
 	"create_category",
 	"update_category",
@@ -100,4 +125,13 @@ __all__ = [
 	"create_ci",
 	"update_ci",
 	"create_relationship",
+    "list_problems",
+    "get_problem",
+    "create_problem",
+    "update_problem",
+    "link_ticket",
+    "list_changes",
+    "get_change",
+    "create_change",
+    "update_change",
 ]

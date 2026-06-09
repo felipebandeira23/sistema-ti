@@ -64,6 +64,14 @@ class Settings(BaseSettings):
     cors_allow_credentials: bool = True
     cors_allow_methods: list[str] = ["*"]
     cors_allow_headers: list[str] = ["*"]
+
+    # Rate Limiting
+    rate_limit_enabled: bool = True
+    rate_limit_requests: int = 100  # requests per window
+    rate_limit_window_seconds: int = 60  # window size in seconds
+
+    # Frontend URL (para links em emails)
+    frontend_url: str = "http://localhost:3000"
     
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -1,7 +1,11 @@
 from app.schemas.auth import LoginRequest, Token, TokenPayload, LoginResponse, RefreshRequest
 from app.schemas.user import UserPublic, RolePublic, UserCreate, UserUpdate
 from app.schemas.asset import AssetPublic, AssetCreate, AssetUpdate
-from app.schemas.ticket import TicketCreate, TicketPublic, TicketStatusUpdate
+from app.schemas.ticket import (
+    TicketCreate, TicketPublic, TicketStatusUpdate, TicketUpdate,
+    TicketCommentCreate, TicketCommentPublic, TicketHistoryPublic,
+    TicketTaskCreate, TicketTaskPublic, TicketFeedbackCreate, TicketFeedbackPublic,
+)
 from app.schemas.service_catalog import (
 	ServiceCatalogCategoryPublic,
 	ServiceCatalogCategoryCreate,
@@ -47,6 +51,18 @@ from app.schemas.cmdb import (
 	CIRelationshipPublic,
 	CIRelationshipCreate,
 )
+from app.schemas.problem import (
+    ProblemPublic,
+    ProblemCreate,
+    ProblemUpdate,
+    ProblemTicketLinkCreate,
+    ProblemTicketLinkPublic,
+)
+from app.schemas.change import (
+    ChangePublic,
+    ChangeCreate,
+    ChangeUpdate,
+)
 
 __all__ = [
 	"LoginRequest",
@@ -64,6 +80,14 @@ __all__ = [
 	"TicketCreate",
 	"TicketPublic",
 	"TicketStatusUpdate",
+	"TicketUpdate",
+	"TicketCommentCreate",
+	"TicketCommentPublic",
+	"TicketHistoryPublic",
+	"TicketTaskCreate",
+	"TicketTaskPublic",
+	"TicketFeedbackCreate",
+	"TicketFeedbackPublic",
 	"ServiceCatalogCategoryPublic",
 	"ServiceCatalogCategoryCreate",
 	"ServiceCatalogCategoryUpdate",
@@ -99,4 +123,12 @@ __all__ = [
 	"CIUpdate",
 	"CIRelationshipPublic",
 	"CIRelationshipCreate",
+    "ProblemPublic",
+    "ProblemCreate",
+    "ProblemUpdate",
+    "ProblemTicketLinkCreate",
+    "ProblemTicketLinkPublic",
+    "ChangePublic",
+    "ChangeCreate",
+    "ChangeUpdate",
 ]

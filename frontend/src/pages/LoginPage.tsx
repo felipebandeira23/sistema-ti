@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuthStore } from '../../stores/authStore'
-import { Button, Input, Alert } from '../shared/UI'
+import { useAuthStore } from '../stores/authStore'
+import { Button, Input, Alert } from '../components/shared/UI'
 
 export function LoginPage() {
   const navigate = useNavigate()

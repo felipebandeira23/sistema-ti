@@ -84,11 +84,14 @@ async def add_decision_with_notification(
                 
                 # Se há mais níveis, cria próximo
                 if catalog_item and approval.level < catalog_item.approval_levels:
+                    # Reutiliza o mesmo quórum do nível anterior; pode ser configurado
+                    # por nível no catalog_item no futuro.
+                    next_required = approval.required_approver_count
                     next_approval = ApprovalRequest(
                         ticket_id=approval.ticket_id,
                         level=approval.level + 1,
                         status="PENDENTE",
-                        required_approver_count=1,  # TODO: configurável
+                        required_approver_count=next_required,
                     )
                     session.add(next_approval)
                     
@@ -202,9 +205,36 @@ async def _send_next_level_notification(
     ticket = await session.get(Ticket, ticket_id)
     if not ticket:
         return
-    
-    # TODO: Implementar busca de aprovadores específicos do nível
-    # Por enquanto, notifica admins
+
+    # Busca usuários ativos para notificar sobre o próximo nível de aprovação
+    admins_result = await session.execute(
+        select(User).where(User.is_active == True)
+    )
+    admins = admins_result.scalars().all()
+
+    requester_name = "Desconhecido"
+    if ticket.opened_by_user_id:
+        requester = await session.get(User, ticket.opened_by_user_id)
+        if requester:
+            requester_name = requester.full_name
+
+    for approver in admins[:3]:
+        if not approver.email:
+            continue
+        html_body = EmailTemplates.approval_request(
+            approval_id=str(next_approval.id),
+            ticket_number=ticket.ticket_number,
+            title=ticket.title,
+            requester=requester_name,
+            level=next_approval.level,
+            approval_url=f"{settings.frontend_url}/approvals/{next_approval.id}",
+        )
+        email_service.send_email(
+            to=[approver.email],
+            subject=f"Aprovação Nível {next_approval.level} - Ticket #{ticket.ticket_number}",
+            body=html_body,
+            html=True,
+        )
 
 
 async def _send_final_approval_notification(
