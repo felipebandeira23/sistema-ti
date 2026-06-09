@@ -116,3 +116,102 @@ async def update_ticket_status(
     await session.commit()
     await session.refresh(ticket)
     return ticket
+
+
+async def list_comments(session: AsyncSession, ticket_id: UUID) -> list:
+    from app.models.ticket import TicketComment
+    result = await session.execute(
+        select(TicketComment)
+        .where(TicketComment.ticket_id == ticket_id, TicketComment.deleted_at.is_(None))
+        .order_by(TicketComment.created_at.asc())
+    )
+    return list(result.scalars().all())
+
+
+async def add_comment(session: AsyncSession, ticket_id: UUID, author_id: UUID, content: str, is_public: bool) -> object:
+    from app.models.ticket import TicketComment
+    comment = TicketComment(ticket_id=ticket_id, author_id=author_id, content=content, is_public=is_public)
+    session.add(comment)
+    await session.commit()
+    await session.refresh(comment)
+    return comment
+
+
+async def get_history(session: AsyncSession, ticket_id: UUID) -> list:
+    from app.models.ticket import TicketHistory
+    result = await session.execute(
+        select(TicketHistory)
+        .where(TicketHistory.ticket_id == ticket_id)
+        .order_by(TicketHistory.created_at.desc())
+    )
+    return list(result.scalars().all())
+
+
+async def list_tasks(session: AsyncSession, ticket_id: UUID) -> list:
+    from app.models.ticket import TicketTask
+    result = await session.execute(
+        select(TicketTask).where(TicketTask.ticket_id == ticket_id).order_by(TicketTask.created_at.asc())
+    )
+    return list(result.scalars().all())
+
+
+async def add_task(session: AsyncSession, ticket_id: UUID, title: str, description: str | None, due_date) -> object:
+    from app.models.ticket import TicketTask
+    task = TicketTask(ticket_id=ticket_id, title=title, description=description, due_date=due_date)
+    session.add(task)
+    await session.commit()
+    await session.refresh(task)
+    return task
+
+
+async def update_task_status(session: AsyncSession, task_id: UUID, new_status: str) -> object | None:
+    from app.models.ticket import TicketTask
+    result = await session.execute(select(TicketTask).where(TicketTask.id == task_id))
+    task = result.scalar_one_or_none()
+    if task:
+        task.status = new_status
+        task.updated_at = datetime.utcnow()
+        await session.commit()
+        await session.refresh(task)
+    return task
+
+
+async def add_feedback(session: AsyncSession, ticket_id: UUID, rating: int, comment: str | None, would_recommend: bool | None) -> object:
+    from app.models.ticket import TicketFeedback
+    fb = TicketFeedback(ticket_id=ticket_id, rating=rating, comment=comment, would_recommend=would_recommend)
+    session.add(fb)
+    await session.commit()
+    await session.refresh(fb)
+    return fb
+
+
+async def update_ticket(session: AsyncSession, ticket, payload, changed_by: UUID) -> object:
+    from app.models.ticket import TicketHistory, TicketPriority
+    changes = []
+    if payload.title is not None and payload.title != ticket.title:
+        changes.append(("title", ticket.title, payload.title))
+        ticket.title = payload.title
+    if payload.description is not None and payload.description != ticket.description:
+        changes.append(("description", ticket.description[:100] if ticket.description else None, payload.description[:100]))
+        ticket.description = payload.description
+    if payload.priority is not None:
+        try:
+            new_priority = TicketPriority(payload.priority)
+            if new_priority != ticket.priority:
+                changes.append(("priority", str(ticket.priority), str(new_priority)))
+                ticket.priority = new_priority
+        except ValueError:
+            pass
+    if payload.assigned_to_user_id is not None:
+        import uuid as _uuid
+        new_assigned = _uuid.UUID(payload.assigned_to_user_id) if payload.assigned_to_user_id else None
+        if new_assigned != ticket.assigned_to_user_id:
+            changes.append(("assigned_to_user_id", str(ticket.assigned_to_user_id) if ticket.assigned_to_user_id else None, str(new_assigned) if new_assigned else None))
+            ticket.assigned_to_user_id = new_assigned
+    ticket.updated_at = datetime.utcnow()
+    for field, old_val, new_val in changes:
+        hist = TicketHistory(ticket_id=ticket.id, field=field, old_value=str(old_val) if old_val is not None else None, new_value=str(new_val) if new_val is not None else None, changed_by_user_id=changed_by)
+        session.add(hist)
+    await session.commit()
+    await session.refresh(ticket)
+    return ticket

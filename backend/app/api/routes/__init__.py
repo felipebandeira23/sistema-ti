@@ -14,6 +14,12 @@ from app.api.routes import (
     problems,
     changes,
     ai_search,
+    reports,
+    notifications,
+    announcements,
+    licensing,
+    audit,
+    integrations,
 )
 
 
@@ -31,5 +37,11 @@ api_router.include_router(dashboard.router)
 api_router.include_router(problems.router)
 api_router.include_router(changes.router)
 api_router.include_router(ai_search.router)
+api_router.include_router(reports.router)
+api_router.include_router(notifications.router)
+api_router.include_router(announcements.router)
+api_router.include_router(licensing.router)
+api_router.include_router(audit.router)
+api_router.include_router(integrations.router)
 
 __all__ = ["api_router"]
