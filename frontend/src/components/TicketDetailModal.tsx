@@ -4,7 +4,7 @@ import { useToast } from '../contexts/ToastContext'
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
-interface TicketDetail {
+export interface TicketDetail {
   id: string
   ticket_number: number
   title: string
@@ -109,6 +109,13 @@ const TYPE_ICONS: Record<string, string> = {
   REQUISIÇÃO: '📋',
   PROBLEMA: '🔧',
   MUDANÇA: '🔄',
+}
+
+const TYPE_LABELS: Record<string, string> = {
+  INCIDENTE: 'Incidente',
+  REQUISIÇÃO: 'Requisição',
+  PROBLEMA: 'Problema',
+  MUDANÇA: 'Mudança',
 }
 
 const TASK_STATUSES = ['PENDENTE', 'EM_ANDAMENTO', 'CONCLUÍDO']
@@ -267,7 +274,7 @@ function DetailsTab({
         <InfoRow label="Urgência" value={ticket.urgency} />
         <InfoRow label="Impacto" value={ticket.impact} />
         <InfoRow label="Prioridade" value={PRIORITY_LABELS[ticket.priority] ?? ticket.priority} />
-        <InfoRow label="Tipo" value={ticket.type} />
+        <InfoRow label="Tipo" value={TYPE_LABELS[ticket.type] ?? ticket.type} />
         <InfoRow label="Aberto por" value={ticket.opened_by_user_id} />
         <InfoRow label="Atribuído a" value={ticket.assigned_to_user_id} />
         <InfoRow label="Criado em" value={formatDateTime(ticket.created_at)} />
@@ -359,11 +366,13 @@ function CommentsTab({ ticket, token }: { ticket: TicketDetail; token: string })
   const toast = useToast()
   const [comments, setComments] = useState<Comment[]>([])
   const [loading, setLoading] = useState(true)
+  const [loaded, setLoaded] = useState(false)
   const [content, setContent] = useState('')
   const [isPublic, setIsPublic] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
   const fetchComments = useCallback(async () => {
+    setLoading(true)
     try {
       const res = await axios.get(`/api/tickets/${ticket.id}/comments`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -374,10 +383,13 @@ function CommentsTab({ ticket, token }: { ticket: TicketDetail; token: string })
       toast.error('Erro ao carregar comentários')
     } finally {
       setLoading(false)
+      setLoaded(true)
     }
   }, [ticket.id, token, toast])
 
-  useEffect(() => { fetchComments() }, [fetchComments])
+  useEffect(() => {
+    if (!loaded) fetchComments()
+  }, [loaded, fetchComments])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -400,7 +412,7 @@ function CommentsTab({ ticket, token }: { ticket: TicketDetail; token: string })
     }
   }
 
-  if (loading) {
+  if (loading && !loaded) {
     return (
       <div className="flex items-center gap-2 text-sm text-gray-400 py-8 justify-center">
         <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-400" />
@@ -481,6 +493,7 @@ function TasksTab({ ticket, token }: { ticket: TicketDetail; token: string }) {
   const toast = useToast()
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
+  const [loaded, setLoaded] = useState(false)
   const [showNewTask, setShowNewTask] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [newDescription, setNewDescription] = useState('')
@@ -489,6 +502,7 @@ function TasksTab({ ticket, token }: { ticket: TicketDetail; token: string }) {
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null)
 
   const fetchTasks = useCallback(async () => {
+    setLoading(true)
     try {
       const res = await axios.get(`/api/tickets/${ticket.id}/tasks`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -499,10 +513,13 @@ function TasksTab({ ticket, token }: { ticket: TicketDetail; token: string }) {
       toast.error('Erro ao carregar tarefas')
     } finally {
       setLoading(false)
+      setLoaded(true)
     }
   }, [ticket.id, token, toast])
 
-  useEffect(() => { fetchTasks() }, [fetchTasks])
+  useEffect(() => {
+    if (!loaded) fetchTasks()
+  }, [loaded, fetchTasks])
 
   const cycleStatus = async (task: Task) => {
     const currentIdx = TASK_STATUSES.indexOf(task.status)
@@ -554,7 +571,7 @@ function TasksTab({ ticket, token }: { ticket: TicketDetail; token: string }) {
     }
   }
 
-  if (loading) {
+  if (loading && !loaded) {
     return (
       <div className="flex items-center gap-2 text-sm text-gray-400 py-8 justify-center">
         <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-400" />
@@ -656,8 +673,10 @@ function HistoryTab({ ticket, token }: { ticket: TicketDetail; token: string }) 
   const toast = useToast()
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const [loading, setLoading] = useState(true)
+  const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
+    if (loaded) return
     axios
       .get(`/api/tickets/${ticket.id}/history`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -667,10 +686,10 @@ function HistoryTab({ ticket, token }: { ticket: TicketDetail; token: string }) 
         setHistory(Array.isArray(data) ? data : data.items ?? [])
       })
       .catch(() => { toast.error('Erro ao carregar histórico') })
-      .finally(() => { setLoading(false) })
-  }, [ticket.id, token, toast])
+      .finally(() => { setLoading(false); setLoaded(true) })
+  }, [ticket.id, token, toast, loaded])
 
-  if (loading) {
+  if (loading && !loaded) {
     return (
       <div className="flex items-center gap-2 text-sm text-gray-400 py-8 justify-center">
         <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-400" />
@@ -776,7 +795,7 @@ export function TicketDetailModal({ ticket, token, onClose, onUpdated }: TicketD
                 {PRIORITY_LABELS[ticket.priority] ?? ticket.priority}
               </span>
               <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                {ticket.type}
+                {TYPE_LABELS[ticket.type] ?? ticket.type}
               </span>
             </div>
             <h2 className="text-xl font-bold text-gray-900 leading-snug">{ticket.title}</h2>
@@ -811,7 +830,7 @@ export function TicketDetailModal({ ticket, token, onClose, onUpdated }: TicketD
           ))}
         </div>
 
-        {/* Tab body */}
+        {/* Tab body — each tab only mounts once its id has been added to loadedTabs */}
         <div className="flex-1 overflow-y-auto px-6 py-5">
           {activeTab === 'detalhes' && loadedTabs.has('detalhes') && (
             <DetailsTab ticket={ticket} token={token} onUpdated={onUpdated} />

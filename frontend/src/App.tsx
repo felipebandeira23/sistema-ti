@@ -16,6 +16,10 @@ import { ProblemPage } from './components/ProblemPage'
 import { ChangePage } from './components/ChangePage'
 import { ReportsPage } from './components/ReportsPage'
 import { AISearchPage } from './components/AISearchPage'
+import { LicensingPage } from './components/LicensingPage'
+import { UsersPage } from './components/UsersPage'
+import { AuditPage } from './components/AuditPage'
+import { IntegrationsPage } from './components/IntegrationsPage'
 
 function App() {
   const { isAuthenticated, token, initializeAuth } = useAuthStore()
@@ -59,6 +63,10 @@ function App() {
                   <Route path="/changes" element={<ChangePage token={token} />} />
                   <Route path="/reports" element={<ReportsPage token={token} />} />
                   <Route path="/ai-search" element={<AISearchPage token={token} />} />
+                  <Route path="/licensing" element={<LicensingPage token={token} />} />
+                  <Route path="/users" element={<UsersPage token={token} />} />
+                  <Route path="/audit" element={<AuditPage token={token} />} />
+                  <Route path="/integrations" element={<IntegrationsPage token={token} />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </AppLayout>
