@@ -1,7 +1,16 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import axios from 'axios'
 import { useAuthStore } from '../stores/authStore'
+
+interface Announcement {
+  id: string
+  title: string
+  content: string
+  is_highlight: boolean
+  scheduled_start: string
+  scheduled_end: string
+}
 
 interface DashboardData {
   totals: { tickets: number; assets: number; approvals: number }
@@ -58,6 +67,77 @@ function SkeletonCard() {
   )
 }
 
+function AnnouncementsBanner({ token }: { token: string }) {
+  const [announcements, setAnnouncements] = useState<Announcement[]>([])
+  const [dismissed, setDismissed] = useState<Set<string>>(() => {
+    try {
+      const stored = sessionStorage.getItem('dismissed_announcements')
+      return stored ? new Set<string>(JSON.parse(stored) as string[]) : new Set<string>()
+    } catch {
+      return new Set<string>()
+    }
+  })
+
+  const fetchAnnouncements = useCallback(async () => {
+    try {
+      const res = await axios.get('/api/announcements/', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const data: Announcement[] = Array.isArray(res.data) ? res.data : res.data.items ?? []
+      setAnnouncements(data)
+    } catch {
+      // silent
+    }
+  }, [token])
+
+  useEffect(() => { fetchAnnouncements() }, [fetchAnnouncements])
+
+  const dismiss = (id: string) => {
+    setDismissed((prev) => {
+      const next = new Set(prev)
+      next.add(id)
+      try {
+        sessionStorage.setItem('dismissed_announcements', JSON.stringify(Array.from(next)))
+      } catch { /* ignore */ }
+      return next
+    })
+  }
+
+  const visible = announcements.filter((a) => !dismissed.has(a.id))
+
+  if (visible.length === 0) return null
+
+  return (
+    <div className="space-y-3 mb-6">
+      {visible.map((a) => (
+        <div
+          key={a.id}
+          className={`flex items-start gap-3 px-4 py-3 rounded-xl border ${
+            a.is_highlight
+              ? 'bg-yellow-50 border-yellow-300 text-yellow-800'
+              : 'bg-blue-50 border-blue-200 text-blue-800'
+          }`}
+        >
+          <span className="text-xl flex-shrink-0 mt-0.5">{a.is_highlight ? '📢' : 'ℹ️'}</span>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm">{a.title}</p>
+            <p className="text-sm mt-0.5 opacity-90">{a.content}</p>
+          </div>
+          <button
+            onClick={() => dismiss(a.id)}
+            className={`flex-shrink-0 text-lg leading-none opacity-60 hover:opacity-100 transition ${
+              a.is_highlight ? 'text-yellow-700' : 'text-blue-700'
+            }`}
+            aria-label="Fechar"
+          >
+            ✕
+          </button>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export function InternalDashboard() {
   const { token, user } = useAuthStore()
   const [data, setData] = useState<DashboardData | null>(null)
@@ -86,6 +166,9 @@ export function InternalDashboard() {
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
+      {/* Announcements */}
+      {token && <AnnouncementsBanner token={token} />}
+
       {/* Saudação */}
       <div className="mb-8">
         <h2 className="text-2xl md:text-3xl font-bold text-gray-900">

@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
+import { NotificationBell } from './NotificationBell'
 
 interface NavItem {
   label: string
@@ -23,6 +24,13 @@ const navItems: NavItem[] = [
   { label: 'Busca IA', path: '/ai-search', icon: '🤖' },
 ]
 
+const adminNavItems: NavItem[] = [
+  { label: 'Licenças', path: '/licensing', icon: '🔑' },
+  { label: 'Usuários', path: '/users', icon: '👥' },
+  { label: 'Integrações', path: '/integrations', icon: '🔗' },
+  { label: 'Auditoria', path: '/audit', icon: '📋' },
+]
+
 interface SidebarProps {
   open: boolean
   onClose: () => void
@@ -31,6 +39,7 @@ interface SidebarProps {
 function Sidebar({ open, onClose }: SidebarProps) {
   const location = useLocation()
   const { user, logout } = useAuthStore()
+  const isAdmin = user?.roles?.includes('admin') ?? false
 
   return (
     <>
@@ -65,6 +74,28 @@ function Sidebar({ open, onClose }: SidebarProps) {
               {item.label}
             </Link>
           ))}
+          {isAdmin && (
+            <>
+              <div className="pt-3 pb-1">
+                <p className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Administração</p>
+              </div>
+              {adminNavItems.map((item) => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  onClick={onClose}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition text-sm font-medium ${
+                    location.pathname === item.path
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                  }`}
+                >
+                  <span className="text-lg">{item.icon}</span>
+                  {item.label}
+                </Link>
+              ))}
+            </>
+          )}
         </nav>
 
         {/* User card */}
@@ -91,7 +122,7 @@ function Sidebar({ open, onClose }: SidebarProps) {
 }
 
 function Header({ onMenuToggle }: { onMenuToggle: () => void }) {
-  const { user } = useAuthStore()
+  const { user, token } = useAuthStore()
 
   return (
     <header className="h-16 bg-white shadow sticky top-0 z-50 flex items-center px-4 gap-4">
@@ -113,6 +144,9 @@ function Header({ onMenuToggle }: { onMenuToggle: () => void }) {
       </div>
 
       <div className="flex-1" />
+
+      {/* Notification Bell */}
+      {token && <NotificationBell token={token} />}
 
       {/* User avatar */}
       <div className="flex items-center gap-2">
